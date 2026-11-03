@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Último Amanhecer</title>
+<style>
+  :root{
+    --bg:#0d0f0c; --panel:#161a14; --ink:#d8dccf; --muted:#8a9180;
+    --accent:#a3c45a; --blood:#b5382f; --line:#2a3125; --gold:#d9a441;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);
+    font-family:Georgia,"Times New Roman",serif;display:flex;justify-content:center;
+    background-image:radial-gradient(ellipse at top,#1b2117 0%,var(--bg) 70%)}
+  main{width:100%;max-width:720px;padding:28px 16px 48px}
+  header{border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:22px}
+  .top{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:baseline}
+  h1{font-size:1.4rem;letter-spacing:.15em;text-transform:uppercase;margin:0;color:var(--accent)}
+  .stats{font-family:ui-monospace,Menlo,monospace;font-size:.8rem;color:var(--muted)}
+  .stats b{color:var(--ink)}
+  .bar{height:5px;background:#222820;border-radius:3px;margin-top:10px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent);transition:width .5s}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:22px}
+  .chip{font-family:ui-monospace,Menlo,monospace;font-size:.72rem;border:1px solid var(--line);border-radius:20px;padding:2px 9px;color:var(--ink)}
+  .chip.bad{border-color:var(--blood);color:#e58a80}
+  .art{position:relative;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:22px;background:#000}
+  .art svg{display:block;width:100%;height:auto}
+  .art::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 80px 20px rgba(0,0,0,.75)}
+  .chapter{font-family:ui-monospace,Menlo,monospace;font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:var(--blood);margin-bottom:8px}
+  .scene-title{font-size:1.6rem;margin:0 0 18px}
+  #text p{line-height:1.7;font-size:1.08rem;margin:0 0 14px}
+  #text p.say{color:var(--accent);font-style:italic}
+  .fx{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}
+  .fx span{font-family:ui-monospace,Menlo,monospace;font-size:.78rem;padding:4px 10px;border-radius:4px;background:#1c211a;border:1px solid var(--line)}
+  .fx .neg{color:#e58a80;border-color:#4a2420}
+  .fx .pos{color:var(--accent);border-color:#33421f}
+  .fx .neu{color:var(--gold);border-color:#4a3c1c}
+  .choices{display:flex;flex-direction:column;gap:10px;margin-top:24px}
+  button{font:inherit;cursor:pointer;text-align:left;background:var(--panel);color:var(--ink);
+    border:1px solid var(--line);border-left:3px solid var(--accent);padding:14px 16px;border-radius:4px;transition:.15s}
+  button:hover,button:focus-visible{background:#1f251b;border-color:var(--accent);outline:none}
+  button small{display:block;color:var(--muted);font-size:.85rem;margin-top:4px}
+  button.danger{border-left-color:var(--blood)}
+  .ending{border:1px solid var(--line);background:var(--panel);padding:18px;border-radius:4px;margin-top:20px}
+  .ending .tag{font-family:ui-monospace,Menlo,monospace;font-size:.75rem;letter-spacing:.2em;text-transform:uppercase}
+  .ending h3{margin:6px 0 0;font-size:1.4rem}
+  .gallery{margin-top:28px;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;color:var(--muted)}
+  .gallery ul{list-style:none;padding:0;margin:8px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .gallery li{border:1px dashed var(--line);padding:8px;border-radius:4px}
+  .gallery li.got{border-style:solid;border-color:var(--accent);color:var(--ink)}
+  .fade{animation:fade .6s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .flicker{animation:flick 3s infinite}
+  @keyframes flick{0%,100%{opacity:1}45%{opacity:.85}48%{opacity:.35}50%{opacity:.9}}
+  .fire{animation:fire .4s infinite alternate;transform-box:fill-box;transform-origin:bottom}
+  @keyframes fire{from{transform:scaleY(.85)}to{transform:scaleY(1.12)}}
+  .spin{animation:rot .25s linear infinite;transform-box:fill-box;transform-origin:center}
+  @keyframes rot{from{transform:scaleX(1)}50%{transform:scaleX(-1)}to{transform:scaleX(1)}}
+  .sway{animation:sway 2.4s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:bottom}
+  @keyframes sway{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
+  .glowp{animation:gp 2s ease-in-out infinite alternate}
+  @keyframes gp{from{opacity:.55}to{opacity:1}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="top">
+      <h1>Último Amanhecer</h1>
+      <div class="stats">Dia <b id="day">1</b> · Vida <b id="hp">100</b> · Suprimentos <b id="sup">3</b></div>
+    </div>
+    <div class="bar"><i id="hpbar" style="width:100%"></i></div>
+    <div class="chips" id="chips"></div>
+  </header>
+  <section id="scene" class="fade"></section>
+</main>
+
+<script>
+/* =====================================================
+   ILUSTRAÇÕES (SVG desenhado em código)
+   ===================================================== */
+const svg = (label, body) =>
+  `<svg viewBox="0 0 640 300" role="img" aria-label="${label}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+const rng = seed => () => (seed = (seed*9301+49297)%233280)/233280;
+
+const zombie = (x,y,s=1,c="#060806") =>
+  `<g transform="translate(${x},${y}) scale(${s})"><g class="sway" fill="${c}">
+    <circle cx="3" cy="-57" r="7"/><path d="M-7,-50 L7,-50 L9,-21 L-8,-21Z"/>
+    <path d="M-5,-48 L-25,-42 L-25,-38 L-4,-42Z"/><path d="M6,-48 L24,-45 L25,-41 L5,-42Z"/>
+    <path d="M-8,-22 L-13,0 L-7,0 L-1,-21Z"/><path d="M8,-22 L11,0 L5,0 L1,-21Z"/></g></g>`;
+
+const person = (x,y,s=1,c="#060806",extra="") =>
+  `<g transform="translate(${x},${y}) scale(${s})" fill="${c}">
+    <circle cx="0" cy="-58" r="7"/><path d="M-8,-50 L8,-50 L9,-22 L-9,-22Z"/>
+    <path d="M-8,-49 L-12,-26 L-8,-26 L-5,-45Z"/><path d="M8,-49 L12,-26 L8,-26 L5,-45Z"/>
+    <path d="M-8,-23 L-7,0 L-2,0 L0,-21Z"/><path d="M8,-23 L7,0 L2,0 L0,-21Z"/>${extra}</g>`;
+
+const raider = (x,y,s,c) => person(x,y,s,c,
+  `<path d="M-8,-62 L-14,-76 L-4,-65 L0,-80 L4,-65 L14,-76 L8,-62Z"/><path d="M8,-46 L22,-82 L26,-80 L12,-44Z"/>`);
+
+const dog = (x,y,s=1,c="#060806") =>
+  `<g transform="translate(${x},${y}) scale(${s})" fill="${c}">
+    <ellipse cx="0" cy="-16" rx="16" ry="7"/><circle cx="16" cy="-24" r="6"/>
+    <path d="M13,-28 L16,-37 L20,-28Z"/><path d="M20,-25 L29,-23 L28,-19 L20,-20Z"/>
+    <rect x="-13" y="-12" width="3" height="12"/><rect x="-7" y="-12" width="3" height="12"/>
+    <rect x="6" y="-12" width="3" height="12"/><rect x="11" y="-12" width="3" height="12"/>
+    <path d="M-15,-18 L-25,-29 L-22,-31 L-12,-21Z"/></g>`;
+
+const grad = (id,stops) => `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">${stops.map((c,i)=>`<stop offset="${i/(stops.length-1)}" stop-color="${c}"/>`).join("")}</linearGradient>`;
+
+const ART = {
+  intro(){
+    const r = rng(7); let win="", stars="";
+    for(let row=0;row<14;row++) for(let col=0;col<4;col++){
+      const lit=row===1&&col===2;
+      win+=`<rect x="${258+col*15}" y="${52+row*16}" width="9" height="10" fill="${lit?"#f0c96a":(r()<.15?"#2c2a1c":"#141812")}" ${lit?'class="flicker"':""}/>`;
+    }
+    for(let i=0;i<40;i++) stars+=`<circle cx="${r()*640}" cy="${r()*120}" r="${r()*1.2+.3}" fill="#cfd6c4" opacity="${r()*.6+.2}"/>`;
+    const back=[[0,140,70],[60,110,50],[105,150,60],[170,90,45],[330,100,60],[400,140,70],[470,120,55],[530,150,110]]
+      .map(([x,y,w])=>`<rect x="${x}" y="${y}" width="${w}" height="${300-y}" fill="#141a13"/>`).join("");
+    return svg("Cidade em ruínas à noite, uma única janela acesa",`
+      <defs>${grad("sk",["#070a0e","#2c3122"])}
+        <radialGradient id="glow"><stop offset="0" stop-color="#f0c96a" stop-opacity=".55"/><stop offset="1" stop-color="#f0c96a" stop-opacity="0"/></radialGradient>
+        <radialGradient id="fire"><stop offset="0" stop-color="#d4542a" stop-opacity=".6"/><stop offset="1" stop-color="#d4542a" stop-opacity="0"/></radialGradient></defs>
+      <rect width="640" height="300" fill="url(#sk)"/>${stars}
+      <circle cx="540" cy="62" r="24" fill="#dcd8b8" opacity=".85"/>
+      <ellipse cx="120" cy="250" rx="180" ry="90" fill="url(#fire)"/>
+      <ellipse cx="160" cy="120" rx="90" ry="22" fill="#3a3c34" opacity=".35"/>
+      ${back}<rect x="250" y="40" width="70" height="260" fill="#0d110c"/>${win}
+      <circle cx="292" cy="73" r="30" fill="url(#glow)"/>
+      <rect y="272" width="640" height="28" fill="#070806"/>
+      ${zombie(70,290,.85)}${zombie(150,292,.75)}${zombie(410,290,1)}${zombie(470,294,.8)}${zombie(585,292,.9)}`);
+  },
+
+  quarto(){
+    return svg("Sala com janela tapada por tábuas; sobre a mesa, um kit médico e uma pistola",`
+      <defs><linearGradient id="ray" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8d9a0" stop-opacity=".35"/><stop offset="1" stop-color="#e8d9a0" stop-opacity="0"/></linearGradient></defs>
+      <rect width="640" height="300" fill="#15130f"/>
+      <rect y="235" width="640" height="65" fill="#0d0b09"/>
+      <rect x="380" y="40" width="170" height="130" fill="#d8c88a"/>
+      <g fill="#1d1812">${[48,78,108,138].map((y,i)=>`<rect x="370" y="${y}" width="190" height="22" transform="rotate(${i%2?3:-2} 465 ${y})"/>`).join("")}</g>
+      <polygon points="380,60 550,160 520,300 250,300" fill="url(#ray)"/>
+      <rect x="150" y="170" width="300" height="12" fill="#2a2119"/>
+      <rect x="165" y="182" width="10" height="70" fill="#2a2119"/><rect x="425" y="182" width="10" height="70" fill="#2a2119"/>
+      <rect x="200" y="140" width="62" height="30" rx="3" fill="#d8dccf"/>
+      <rect x="226" y="146" width="10" height="20" fill="#b5382f"/><rect x="221" y="151" width="20" height="10" fill="#b5382f"/>
+      <path d="M330,168 L330,156 L372,156 L372,148 L380,148 L380,162 L348,162 L344,170Z" fill="#0a0a0a"/>
+      <circle cx="390" cy="166" r="2" fill="#c8a060"/><circle cx="396" cy="167" r="2" fill="#c8a060"/><circle cx="402" cy="166" r="2" fill="#c8a060"/>
+      <path d="M470,250 Q470,195 505,195 Q540,195 540,250Z" fill="#2c3324"/>
+      ${person(90,290,1.6,"#050403")}`);
+  },
+
+  mercado(){
+    const r=rng(3); let items="";
+    const cols=["#5b3a2a","#3b4f38","#6a5a2a","#2e3e52","#5a2626"];
+    [80,120,160].forEach(y=>{ for(let x=36;x<172;x+=11) if(r()<.55) items+=`<rect x="${x}" y="${y-14+r()*3}" width="8" height="${12+r()*2}" fill="${cols[Math.floor(r()*5)]}"/>`; });
+    return svg("Mercado saqueado; um homem ferido levanta as mãos, zumbis na vitrine",`
+      <defs><clipPath id="w"><rect x="420" y="40" width="180" height="110"/></clipPath>
+        <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8c4a8" stop-opacity=".18"/><stop offset="1" stop-color="#b8c4a8" stop-opacity="0"/></linearGradient></defs>
+      <rect width="640" height="300" fill="#1a1e17"/><rect y="232" width="640" height="68" fill="#0f120d"/>
+      <rect x="420" y="40" width="180" height="110" fill="#56634f"/>
+      <g clip-path="url(#w)">${zombie(450,175,1.5,"#1a2016")}${zombie(510,180,1.6,"#141a11")}${zombie(570,172,1.4,"#1a2016")}</g>
+      <path d="M420,40 L600,40 L600,150 L420,150Z M510,40 L510,150 M420,95 L600,95" stroke="#0c0f0a" stroke-width="5" fill="none"/>
+      <path d="M455,55 L480,80 L470,100 M480,80 L505,72" stroke="#cfd6c4" stroke-width="1" opacity=".6" fill="none"/>
+      <polygon points="420,150 600,150 640,300 330,300" fill="url(#beam)"/>
+      <rect x="30" y="50" width="150" height="182" fill="#232a20" stroke="#0c0f0a" stroke-width="3"/>
+      ${[80,120,160,200].map(y=>`<rect x="30" y="${y}" width="150" height="4" fill="#0c0f0a"/>`).join("")}${items}
+      <rect x="190" y="200" width="140" height="22" fill="#232a20" transform="rotate(-14 260 211)"/>
+      <rect x="250" y="168" width="150" height="68" fill="#2a2119"/><rect x="244" y="162" width="162" height="8" fill="#3a2e22"/>
+      <ellipse cx="500" cy="262" rx="55" ry="9" fill="#5a1410"/>
+      <g fill="#0b0d0a"><circle cx="470" cy="190" r="10"/><path d="M458,202 L482,202 L486,245 L455,245Z"/>
+        <path d="M458,205 L440,180 L436,168 L442,166 L448,178 L462,198Z"/><path d="M482,205 L500,180 L504,168 L498,166 L492,178 L478,198Z"/>
+        <path d="M455,240 L540,250 L540,262 L455,256Z"/></g>
+      <path d="M495,250 L530,254 L530,260 L495,256Z" fill="#7a1a14"/>
+      ${person(110,300,1.5,"#040504",`<path d="M10,-30 L30,-70" stroke="#3a3f38" stroke-width="3"/>`)}`);
+  },
+
+  postoNoite(marcos){
+    return svg("Loja de conveniência à noite; lá fora, um cachorro late e zumbis se aproximam",`
+      <defs>${grad("nb",["#0c1626","#26384c"])}</defs>
+      <rect width="640" height="300" fill="#0b0d0c"/>
+      <rect x="200" y="50" width="240" height="190" fill="url(#nb)"/>
+      <circle cx="390" cy="85" r="16" fill="#cfdbe6" opacity=".8"/>
+      <rect x="200" y="200" width="240" height="40" fill="#121a24"/>
+      ${zombie(235,212,.55,"#05080c")}${zombie(420,214,.6,"#05080c")}${zombie(450,210,.5,"#05080c")}
+      ${dog(330,232,1.1,"#05070a")}
+      <g stroke="#cfdbe6" stroke-width="1.5" opacity=".7"><path d="M368,198 q6,4 0,8"/><path d="M374,195 q9,7 0,14"/></g>
+      <path d="M200,50 L440,50 L440,240 L200,240Z M320,50 L320,240" stroke="#050605" stroke-width="7" fill="none"/>
+      <rect x="300" y="135" width="8" height="20" fill="#050605"/>
+      <polygon points="200,240 440,240 520,300 120,300" fill="#cfdbe6" opacity=".06"/>
+      <rect x="0" y="80" width="150" height="200" fill="#111411"/>${[120,160,200,240].map(y=>`<rect x="0" y="${y}" width="150" height="4" fill="#070807"/>`).join("")}
+      <rect x="490" y="80" width="150" height="200" fill="#111411"/>${[120,160,200,240].map(y=>`<rect x="490" y="${y}" width="150" height="4" fill="#070807"/>`).join("")}
+      <rect y="262" width="640" height="38" fill="#070807"/>
+      <g fill="#020302"><circle cx="160" cy="232" r="9"/><path d="M150,242 L172,240 L178,280 L148,282Z"/><path d="M146,280 L190,276 L190,286 L146,288Z"/></g>
+      ${marcos?`<g fill="#020302"><circle cx="560" cy="250" r="9"/><path d="M520,262 L570,256 L574,276 L515,280Z"/></g>`:""}`);
+  },
+
+  hospital(){
+    return svg("Fachada do Hospital Santa Clara, letreiro com a cruz quebrada, ambulância abandonada",`
+      <defs>${grad("hs",["#283028","#6a7466"])}</defs>
+      <rect width="640" height="300" fill="url(#hs)"/>
+      <rect x="140" y="40" width="360" height="230" fill="#161b16"/>
+      ${Array.from({length:6},(_,r)=>Array.from({length:10},(_,c)=>`<rect x="${158+c*34}" y="${60+r*30}" width="20" height="16" fill="${(r*7+c*3)%11===0?"#3a2a1a":"#0c100c"}"/>`).join("")).join("")}
+      <rect x="290" y="12" width="60" height="34" fill="#161b16"/>
+      <rect x="312" y="16" width="16" height="26" fill="#b5382f" class="flicker"/><rect x="302" y="22" width="36" height="12" fill="#b5382f" class="flicker"/>
+      <text x="320" y="225" text-anchor="middle" font-family="monospace" font-size="12" fill="#7f8a7a" letter-spacing="3">HOSPITAL SANTA CLARA</text>
+      <rect x="280" y="232" width="80" height="38" fill="#050605"/>
+      <rect y="268" width="640" height="32" fill="#0d100d"/>
+      <g fill="#0b0e0b"><path d="M430,268 L430,228 L500,228 L500,212 L540,212 L560,236 L560,268Z"/><circle cx="455" cy="270" r="10"/><circle cx="535" cy="270" r="10"/></g>
+      <rect x="470" y="238" width="18" height="6" fill="#b5382f"/><rect x="476" y="232" width="6" height="18" fill="#b5382f"/>
+      ${zombie(300,272,.7,"#030403")}${zombie(250,275,.6,"#030403")}${zombie(380,273,.65,"#030403")}${zombie(80,280,.8,"#030403")}`);
+  },
+
+  corredor(cao){
+    const lights=[0,1,2,3].map(i=>{const y=40+i*22,w=60-i*12; return `<rect x="${320-w/2}" y="${y}" width="${w}" height="4" fill="#e8f0d8" ${i===1?'class="flicker"':""}/>`;}).join("");
+    return svg("Corredor escuro do hospital, luzes piscando, vultos no fim",`
+      <rect width="640" height="300" fill="#0c100e"/>
+      <polygon points="0,0 640,0 400,110 240,110" fill="#151b17"/>
+      <polygon points="0,300 640,300 400,190 240,190" fill="#0a0d0b"/>
+      <polygon points="0,0 240,110 240,190 0,300" fill="#121814"/>
+      <polygon points="640,0 400,110 400,190 640,300" fill="#121814"/>
+      <rect x="240" y="110" width="160" height="80" fill="#2a3a30"/>
+      ${lights}
+      <polygon points="300,190 340,190 420,300 220,300" fill="#e8f0d8" opacity=".05"/>
+      ${zombie(300,190,.9,"#050706")}${zombie(335,192,.95,"#050706")}${zombie(365,190,.85,"#050706")}
+      <rect x="60" y="80" width="40" height="150" fill="#0a0d0b" transform="skewY(20)"/>
+      <rect x="560" y="-120" width="40" height="150" fill="#0a0d0b" transform="skewY(-20)"/>
+      <g fill="#070908"><rect x="440" y="215" width="110" height="12"/><rect x="448" y="227" width="4" height="40"/><rect x="540" y="227" width="4" height="40"/></g>
+      <path d="M455,215 Q480,195 520,212" stroke="#3a443c" stroke-width="10" fill="none"/>
+      <text x="120" y="70" font-family="monospace" font-size="11" fill="#7a2a22" transform="rotate(12 120 70)">NÃO ENTRE</text>
+      ${person(160,300,1.4,"#020302")}${cao?dog(215,300,1.2,"#020302"):""}`);
+  },
+
+  farmacia(){
+    return svg("Farmácia de beira de estrada com a cruz verde piscando",`
+      <defs>${grad("fs",["#3a4448","#a4a89a"])}</defs>
+      <rect width="640" height="300" fill="url(#fs)"/>
+      <path d="M0,230 L640,230 L640,300 L0,300Z" fill="#1c1e1a"/>
+      <rect x="150" y="100" width="340" height="132" fill="#262a26"/>
+      <rect x="140" y="88" width="360" height="16" fill="#1a1d1a"/>
+      <rect x="180" y="135" width="120" height="80" fill="#4c5a54"/><rect x="340" y="135" width="120" height="80" fill="#4c5a54"/>
+      <path d="M190,140 L240,190 L220,215 M240,190 L295,170" stroke="#cfd6c4" stroke-width="1" opacity=".6" fill="none"/>
+      <g class="flicker"><rect x="309" y="40" width="22" height="56" fill="#3fbf6a"/><rect x="292" y="57" width="56" height="22" fill="#3fbf6a"/></g>
+      <rect x="318" y="96" width="4" height="0" fill="#000"/>
+      <text x="320" y="128" text-anchor="middle" font-family="monospace" font-size="11" fill="#9aa69a" letter-spacing="3">DROGARIA KM 12</text>
+      <g fill="#111311"><rect x="80" y="245" width="70" height="8"/><path d="M500,262 L500,240 L548,240 L560,226 L594,226 L606,244 L620,246 L620,262Z"/><circle cx="522" cy="264" r="11"/><circle cx="598" cy="264" r="11"/></g>
+      ${zombie(420,232,.7,"#0f110f")}`);
+  },
+
+  corvos(){
+    const r=rng(9); let crowd="";
+    for(let i=0;i<6;i++){ const x=170+i*55+r()*12; crowd+=raider(x,250-(i%2)*4,.95+r()*.2,"#0a0504"); }
+    const barrel=(x)=>`<rect x="${x-12}" y="228" width="24" height="30" fill="#1a0c08"/><path class="fire" d="M${x-12},228 Q${x-14},200 ${x-4},208 Q${x},180 ${x+4},206 Q${x+14},196 ${x+12},228Z" fill="#f08a2a"/><path class="fire" d="M${x-6},228 Q${x-6},212 ${x},214 Q${x+6},210 ${x+6},228Z" fill="#ffd36a"/>`;
+    return svg("Bloqueio na estrada: saqueadores com máscaras de penas ao redor de barris em chamas",`
+      <defs>${grad("cs",["#120607","#4a1a10","#a24a22"])}
+        <radialGradient id="fg"><stop offset="0" stop-color="#f08a2a" stop-opacity=".45"/><stop offset="1" stop-color="#f08a2a" stop-opacity="0"/></radialGradient></defs>
+      <rect width="640" height="300" fill="url(#cs)"/>
+      <path d="M0,210 Q200,190 320,205 T640,200 L640,300 L0,300Z" fill="#170806"/>
+      <ellipse cx="320" cy="240" rx="320" ry="90" fill="url(#fg)"/>
+      <g fill="#0d0504"><path d="M20,258 L30,215 L140,212 L150,258Z"/><path d="M480,258 L490,220 L610,214 L622,258Z"/></g>
+      <path d="M140,236 L500,236" stroke="#0d0504" stroke-width="4" stroke-dasharray="10 6"/>
+      ${barrel(110)}${barrel(530)}${crowd}
+      <rect y="258" width="640" height="42" fill="#0b0403"/>`);
+  },
+
+  estrada(marcos,cao){
+    const fig = marcos
+      ? person(226,282,1.05,"#0a0807") + `<g transform="rotate(7 252 282)">${person(250,284,1.05,"#0a0807")}</g>`
+      : person(240,282,1.05,"#0a0807");
+    return svg("Bifurcação ao entardecer; placas para a fazenda e para a base",`
+      <defs>${grad("dusk",["#2a1f2a","#9a4a32","#e09050"])}</defs>
+      <rect width="640" height="300" fill="url(#dusk)"/>
+      <circle cx="320" cy="198" r="34" fill="#f2b060" opacity=".9"/>
+      <path d="M0,200 Q120,170 220,195 T420,185 T640,195 L640,300 L0,300Z" fill="#2a1d16"/>
+      <polygon points="230,300 410,300 335,200 305,200" fill="#15110e"/>
+      <polygon points="305,200 335,200 180,186 170,188" fill="#15110e"/><polygon points="305,200 335,200 470,186 480,188" fill="#15110e"/>
+      ${[285,250,225].map((y,i)=>`<rect x="${318-i}" y="${y}" width="${4-i}" height="${12-i*3}" fill="#c8a060"/>`).join("")}
+      <rect x="370" y="210" width="5" height="70" fill="#120e0b"/>
+      <polygon points="300,212 372,212 372,230 300,230 290,221" fill="#2f5a2f" stroke="#120e0b"/>
+      <text x="306" y="225" font-family="monospace" font-size="10" fill="#e6e6d0">FAZENDA</text>
+      <polygon points="375,234 450,234 460,243 450,252 375,252" fill="#2f5a2f" stroke="#120e0b"/>
+      <text x="381" y="247" font-family="monospace" font-size="10" fill="#e6e6d0">BASE</text>
+      <g fill="#100c0a"><path d="M470,270 L470,245 L520,245 L535,228 L575,228 L590,248 L610,250 L610,270Z"/><circle cx="495" cy="272" r="13"/><circle cx="585" cy="272" r="13"/></g>
+      <rect x="540" y="233" width="30" height="13" fill="#d68a52" opacity=".5"/>
+      ${fig}${cao?dog(190,284,.9,"#0a0807"):""}
+      ${zombie(30,262,.55,"#1a120e")}`);
+  },
+
+  cura(){
+    return svg("Laboratório ao amanhecer; um frasco brilha sobre a mesa, um helicóptero do lado de fora",`
+      <defs>${grad("lc",["#5a6c7c","#e0a878","#f8d498"])}
+        <radialGradient id="vg"><stop offset="0" stop-color="#6ef0e0" stop-opacity=".8"/><stop offset="1" stop-color="#6ef0e0" stop-opacity="0"/></radialGradient></defs>
+      <rect width="640" height="300" fill="#141a1c"/>
+      <rect x="140" y="30" width="360" height="170" fill="url(#lc)"/>
+      <circle cx="420" cy="170" r="34" fill="#fff0c0" opacity=".9"/>
+      <path d="M140,175 Q260,150 360,172 T500,165 L500,200 L140,200Z" fill="#3a4040"/>
+      <g transform="translate(250,90)" fill="#1c2222"><ellipse rx="36" ry="14"/><path d="M26,-5 L92,-3 L92,2 L26,7Z"/><rect x="87" y="-14" width="5" height="18"/>
+        <rect class="spin" x="-75" y="-22" width="150" height="3"/><path d="M-20,14 L-20,22 M16,14 L16,22 M-30,22 L26,22" stroke="#1c2222" stroke-width="3"/></g>
+      <path d="M140,30 L500,30 L500,200 L140,200Z M320,30 L320,200 M140,115 L500,115" stroke="#0a0e0f" stroke-width="6" fill="none"/>
+      <rect y="225" width="640" height="75" fill="#0e1314"/><rect x="60" y="218" width="520" height="10" fill="#1e2628"/>
+      <circle cx="320" cy="200" r="50" fill="url(#vg)" class="glowp"/>
+      <rect x="312" y="168" width="16" height="50" rx="4" fill="#0a0e0f"/><rect x="314" y="185" width="12" height="31" rx="3" fill="#6ef0e0" class="glowp"/>
+      <rect x="310" y="162" width="20" height="8" fill="#2a3436"/>
+      <g fill="#0a0e0f"><rect x="120" y="190" width="14" height="30"/><rect x="140" y="200" width="10" height="20"/><rect x="480" y="185" width="60" height="35"/></g>`);
+  },
+
+  resgate(){
+    return svg("Helicóptero sobrevoando a base destruída ao amanhecer",`
+      <defs>${grad("dawn",["#4a5a6c","#d9946a","#f5c27a"])}</defs>
+      <rect width="640" height="300" fill="url(#dawn)"/>
+      <circle cx="120" cy="230" r="40" fill="#fbe0a0" opacity=".8"/>
+      <path d="M520,250 Q510,180 540,120 Q560,80 530,40" stroke="#5a5550" stroke-width="22" fill="none" opacity=".35"/>
+      <path d="M0,240 L640,240 L640,300 L0,300Z" fill="#1e1c18"/>
+      <path d="M400,240 A80,60 0 0 1 560,240Z" fill="#24221d"/><path d="M470,190 L500,200 L490,215Z" fill="#d9946a"/>
+      <g stroke="#1e1c18" stroke-width="3">${Array.from({length:22},(_,i)=>`<line x1="${i*30}" y1="215" x2="${i*30}" y2="245"/>`).join("")}<line x1="0" y1="222" x2="380" y2="222"/></g>
+      <g stroke="#1e1c18" stroke-width="3" fill="none"><path d="M70,240 L85,130 L105,240 M78,190 L98,190 M74,215 L102,215"/><rect x="72" y="118" width="26" height="14" fill="#1e1c18"/></g>
+      <rect x="260" y="180" width="90" height="60" fill="#1e1c18"/>
+      ${person(282,180,.75,"#1e1c18",`<path d="M-8,-49 L-18,-75 L-14,-76 L-5,-46Z"/>`)}${person(328,180,.75,"#1e1c18",`<path d="M8,-49 L18,-75 L14,-76 L5,-46Z"/>`)}
+      <g transform="translate(400,70)" fill="#141614"><ellipse rx="42" ry="17"/><path d="M30,-6 L110,-4 L110,2 L30,8Z"/><rect x="104" y="-16" width="6" height="22"/>
+        <path d="M-25,-6 Q-10,-14 8,-8 L8,2 L-25,2Z" fill="#6a7a86"/><rect x="-2" y="-24" width="4" height="8"/>
+        <rect class="spin" x="-90" y="-26" width="180" height="3"/><path d="M-25,17 L-25,26 M20,17 L20,26 M-38,26 L32,26" stroke="#141614" stroke-width="3"/></g>
+      ${zombie(180,262,.5,"#100f0d")}${zombie(560,268,.55,"#100f0d")}${zombie(600,264,.5,"#100f0d")}`);
+  },
+
+  portoes(){
+    const r=rng(5); let horde="";
+    for(let i=0;i<34;i++){ const s=.5+r()*.6; horde+=zombie(r()*640,262+s*35,s,"#0a0302"); }
+    return svg("Portões abertos da base sob céu vermelho, horda de zumbis",`
+      <defs>${grad("rd",["#1c0605","#7a2216","#b0402a"])}</defs>
+      <rect width="640" height="300" fill="url(#rd)"/>
+      <circle cx="520" cy="210" r="46" fill="#d8603a" opacity=".55"/>
+      <path d="M0,230 L640,230 L640,300 L0,300Z" fill="#160605"/>
+      <g fill="#160605"><rect x="150" y="90" width="26" height="150"/><rect x="380" y="90" width="26" height="150"/><rect x="140" y="80" width="276" height="22"/>
+        <polygon points="176,110 120,140 120,235 176,240"/><polygon points="380,110 440,140 440,235 380,240"/></g>
+      <text x="278" y="96" text-anchor="middle" font-family="monospace" font-size="11" fill="#c8a08a" letter-spacing="2">BASE FERREIRA · ZONA SEGURA</text>
+      <path d="M0,150 ${Array.from({length:12},(_,i)=>`L${8+i*12},${i%2?146:154}`).join(" ")} M406,150 ${Array.from({length:20},(_,i)=>`L${412+i*12},${i%2?146:154}`).join(" ")}" stroke="#160605" stroke-width="2" fill="none"/>
+      <g stroke="#160605" stroke-width="3" fill="none"><path d="M520,235 L540,60 L560,235 M528,170 L552,170 M532,120 L548,120"/></g>
+      <rect x="524" y="44" width="34" height="22" fill="#160605"/><rect x="535" y="50" width="10" height="9" fill="#f0c96a" class="flicker"/>
+      <g fill="#120504"><path d="M230,262 L230,240 L272,240 L284,226 L318,226 L330,242 L350,244 L350,262Z"/><circle cx="252" cy="264" r="11"/><ellipse cx="330" cy="270" rx="13" ry="6"/></g>
+      ${horde}`);
+  },
+
+  instinto(){
+    let lights=""; for(let i=0;i<7;i++) lights+=`<circle cx="${380+i*34}" cy="${238-i*3}" r="3" fill="#f6dc8a" class="flicker" style="animation-delay:${i*.3}s"/>`;
+    return svg("Do alto de um morro, Lia e o cachorro observam a base em chamas; uma caravana passa ao longe",`
+      <defs>${grad("in",["#0a0c18","#24203a","#5a3040"])}</defs>
+      <rect width="640" height="300" fill="url(#in)"/>
+      ${Array.from({length:30},(_,i)=>`<circle cx="${(i*97)%640}" cy="${(i*53)%110}" r="1" fill="#e6e6f0" opacity=".6"/>`).join("")}
+      <path d="M0,210 L640,200 L640,300 L0,300Z" fill="#150f1c"/>
+      <g fill="#0e0a14"><rect x="80" y="170" width="160" height="40"/><rect x="110" y="140" width="14" height="40"/><rect x="200" y="150" width="14" height="30"/></g>
+      <path class="fire" d="M120,172 Q130,130 150,160 Q165,120 180,165 Q200,140 210,172Z" fill="#e0602a" opacity=".8"/>
+      <path d="M150,130 Q130,80 170,40" stroke="#4a4050" stroke-width="18" fill="none" opacity=".4"/>
+      <path d="M340,240 Q480,225 640,232" stroke="#1d1626" stroke-width="10" fill="none"/>${lights}
+      <path d="M0,300 L0,262 Q150,240 300,268 L330,300Z" fill="#050407"/>
+      ${person(150,262,1.2,"#050407")}${dog(195,262,1,"#050407")}`);
+  },
+
+  fazenda({sky,hill1,hill2,ground,house,win,sun,dogOn,people,crops,mill}){
+    let ppl=""; (people||[]).forEach(([x,s])=>ppl+=person(x,262,s,house));
+    return svg("Fazenda isolada entre colinas",`
+      <defs>${grad("fz",sky)}</defs>
+      <rect width="640" height="300" fill="url(#fz)"/>
+      ${sun?`<circle cx="${sun[0]}" cy="${sun[1]}" r="${sun[2]}" fill="${sun[3]}" opacity=".85"/>`:""}
+      <path d="M0,170 Q140,130 300,165 T640,150 L640,300 L0,300Z" fill="${hill1}"/>
+      <path d="M0,205 Q180,175 360,200 T640,190 L640,300 L0,300Z" fill="${hill2}"/>
+      <path d="M0,240 L640,240 L640,300 L0,300Z" fill="${ground}"/>
+      ${crops?Array.from({length:9},(_,i)=>`<path d="M${20+i*30},250 L${10+i*30},300" stroke="${house}" stroke-width="3" opacity=".6"/>`).join(""):""}
+      <g fill="${house}"><rect x="390" y="175" width="160" height="72"/><polygon points="380,177 470,128 560,177"/><rect x="510" y="128" width="14" height="30"/>
+        <rect x="380" y="208" width="60" height="5"/><rect x="384" y="213" width="4" height="34"/><rect x="434" y="213" width="4" height="34"/></g>
+      <rect x="470" y="192" width="20" height="18" fill="${win}"/>
+      <ellipse cx="520" cy="112" rx="10" ry="8" fill="#e6e8e4" opacity=".5"/><ellipse cx="530" cy="92" rx="14" ry="10" fill="#e6e8e4" opacity=".35"/>
+      ${mill?`<g stroke="${house}" stroke-width="3"><path d="M300,245 L315,140 L330,245"/></g><g class="spin" style="transform-origin:315px 140px"><path d="M315,140 L315,105 M315,140 L350,140 M315,140 L315,175 M315,140 L280,140" stroke="${house}" stroke-width="4"/></g>`:""}
+      <g fill="${house}"><circle cx="412" cy="216" r="6"/><path d="M405,222 L419,222 L421,240 L405,240Z"/><path d="M405,238 L392,240 L392,247 L405,244Z"/><path d="M419,238 L428,247 L433,247 L421,236Z"/></g>
+      ${dogOn?dog(355,247,.8,house):""}
+      <g stroke="${house}" stroke-width="3" fill="none"><path d="M120,248 L120,150 M120,190 L95,160 M120,175 L148,145 M120,210 L150,190"/></g>
+      <g stroke="${house}" stroke-width="2" opacity=".8">${Array.from({length:8},(_,i)=>`<line x1="${i*30}" y1="238" x2="${i*30}" y2="262"/>`).join("")}<line x1="0" y1="246" x2="220" y2="246"/></g>
+      ${ppl}`);
+  },
+
+  raizes(){ return ART.fazenda({sky:["#6aa0c8","#e8e0b8"],hill1:"#6a8a4a",hill2:"#4a6a34",ground:"#3a4a24",house:"#1e2416",win:"#e8c86a",sun:[110,70,30,"#fff4c0"],crops:true,mill:true,dogOn:S_cao(),people:[[60,.9],[90,.6],[250,1],[275,.55],[600,.95]]}); },
+  companhia(){ return ART.fazenda({sky:["#3a2a4a","#c86a4a","#f0b070"],hill1:"#6a4a40",hill2:"#4a3430",ground:"#2a1e1c",house:"#140e0e",win:"#f0c060",sun:[200,200,36,"#ffd890"],dogOn:true}); },
+  silencio(){ return ART.fazenda({sky:["#7d878c","#c9cdc8"],hill1:"#8f9a9a",hill2:"#6c7774",ground:"#4e5653",house:"#2e3432",win:"#5a6260",sun:[200,90,30,"#e4e4dc"]}); },
+
+  ultimo(){
+    const r=rng(21); let city="";
+    for(let i=0;i<16;i++){ const w=30+r()*30, h=40+r()*90, x=i*42; city+=`<rect x="${x}" y="${260-h}" width="${w}" height="${h+40}" fill="#2a1e22" opacity=".8"/>`; }
+    return svg("Lia sentada no alto de um prédio, olhando o sol nascer sobre a cidade",`
+      <defs>${grad("ul",["#3a3050","#c86a5a","#f8c080"])}</defs>
+      <rect width="640" height="300" fill="url(#ul)"/>
+      <circle cx="420" cy="230" r="50" fill="#ffe0a0" opacity=".9"/>
+      ${city}
+      <rect x="0" y="240" width="300" height="60" fill="#0e0a0c"/>
+      <g fill="#0e0a0c"><circle cx="200" cy="198" r="8"/><path d="M191,206 L209,206 L212,236 L189,236Z"/>
+        <path d="M195,234 L226,236 L226,262 L220,262 L220,244 L195,242Z"/><path d="M207,212 L222,228 L218,232 L204,218Z"/></g>
+      <path d="M80,240 L80,215 L110,215" stroke="#0e0a0c" stroke-width="3" fill="none"/>`);
+  },
+
+  fim(){
+    return svg("Rua vazia ao anoitecer; uma mochila caída no asfalto",`
+      <defs>${grad("fm",["#0a0606","#2a0e0c"])}</defs>
+      <rect width="640" height="300" fill="url(#fm)"/>
+      <rect x="0" y="80" width="120" height="180" fill="#120808"/><rect x="520" y="60" width="120" height="200" fill="#120808"/>
+      <polygon points="0,300 640,300 400,200 240,200" fill="#0c0606"/>
+      <rect y="200" width="640" height="4" fill="#160a0a"/>
+      <path d="M300,270 Q300,245 322,245 Q344,245 344,270Z" fill="#2a2a20"/><rect x="304" y="252" width="36" height="6" fill="#1a1a14"/>
+      <circle cx="368" cy="272" r="4" fill="#5a1410"/><circle cx="380" cy="276" r="3" fill="#5a1410"/>
+      ${zombie(200,215,.6,"#050202")}${zombie(450,218,.7,"#050202")}${zombie(480,212,.55,"#050202")}`);
+  },
+};
+
+/* =====================================================
+   ESTADO
+   ===================================================== */
+const ENDINGS = {
+  cura:      {name:"Ômega-Sete",        tone:"#6ef0e0",      label:"Final lendário"},
+  resgate:   {name:"Resgate",           tone:"var(--accent)",label:"Final bom"},
+  raizes:    {name:"Raízes",            tone:"var(--accent)",label:"Final bom"},
+  instinto:  {name:"Instinto",          tone:"#9ab0d8",      label:"Final neutro"},
+  companhia: {name:"Companhia",         tone:"var(--gold)",  label:"Final agridoce"},
+  ultimo:    {name:"Último Turno",      tone:"var(--gold)",  label:"Final agridoce"},
+  silencio:  {name:"Silêncio",          tone:"#7aa0b8",      label:"Final neutro"},
+  portoes:   {name:"Portões Abertos",   tone:"var(--blood)", label:"Final ruim"},
+  corvos:    {name:"Asas Negras",       tone:"var(--blood)", label:"Final sombrio"},
+  fim:       {name:"Fim da Linha",      tone:"var(--blood)", label:"Morte"},
+};
+
+let st, fx=[];
+const S_cao = () => st && st.cao;
+function reset(){
+  st = {day:1, hp:100, sup:3, item:null, balas:0, kitUsado:false,
+        marcos:false, cao:false, amostra:false, mordida:false, corvos:null, route:null, causa:""};
+  fx=[];
+}
+const note = (t,k="neu") => fx.push([t,k]);
+function supply(n){ st.sup=Math.max(0,st.sup+n); note(`${n>0?"+":""}${n} Suprimentos`, n>0?"pos":"neg"); }
+// retorna true se Lia morreu
+function hurt(n, causa){
+  st.hp -= n; note(`−${n} Vida`,"neg");
+  if (st.item==="kit" && !st.kitUsado && st.hp < 50){
+    st.kitUsado=true; st.hp=Math.min(100,st.hp+35); note("Kit médico usado: +35 Vida","pos");
+  }
+  if (st.hp<=0){ st.hp=0; st.causa=causa; return true; }
+  return false;
+}
+
+function loadSeen(){ try{ return JSON.parse(localStorage.getItem("ua2_endings")||"[]"); }catch(e){ return []; } }
+function saveSeen(id){ try{ const s=new Set(loadSeen()); s.add(id); localStorage.setItem("ua2_endings",JSON.stringify([...s])); }catch(e){} }
+
+function updateHud(){
+  day.textContent=st.day; hp.textContent=st.hp; sup.textContent=st.sup;
+  const bar=document.getElementById("hpbar"); bar.style.width=st.hp+"%";
+  bar.style.background = st.hp>60?"var(--accent)":st.hp>30?"var(--gold)":"var(--blood)";
+  const c=[];
+  if(st.item==="kit") c.push(st.kitUsado?"Kit médico (usado)":"Kit médico");
+  if(st.item==="pistola") c.push(`Pistola (${st.balas} ${st.balas===1?"bala":"balas"})`);
+  if(st.marcos) c.push("Companheiro: Marcos");
+  if(st.cao) c.push("Companheiro: Farol 🐕");
+  if(st.amostra) c.push("Amostra H-17");
+  let h=c.map(t=>`<span class="chip">${t}</span>`).join("");
+  if(st.mordida) h+=`<span class="chip bad">Infectada</span>`;
+  chips.innerHTML=h;
+}
+
+function render({art, chapter, title, paras, choices, ending}){
+  updateHud();
+  const el=document.getElementById("scene");
+  el.classList.remove("fade"); void el.offsetWidth; el.classList.add("fade");
+  let html = art?`<div class="art">${art}</div>`:"";
+  html += `<div class="chapter">${chapter}</div><h2 class="scene-title">${title}</h2><div id="text">`;
+  html += paras.filter(Boolean).map(p=>p.startsWith("—")?`<p class="say">${p}</p>`:`<p>${p}</p>`).join("") + `</div>`;
+  if(fx.length){ html += `<div class="fx">${fx.map(([t,k])=>`<span class="${k}">${t}</span>`).join("")}</div>`; fx=[]; }
+  if(ending){
+    const e=ENDINGS[ending]; saveSeen(ending); const seen=loadSeen();
+    html += `<div class="ending" style="border-left:3px solid ${e.tone}"><div class="tag" style="color:${e.tone}">${e.label}</div><h3>${e.name}</h3></div>`;
+    html += `<div class="gallery">Finais descobertos: ${seen.length}/${Object.keys(ENDINGS).length}<ul>`+
+      Object.entries(ENDINGS).map(([k,v])=>`<li class="${seen.includes(k)?"got":""}">${seen.includes(k)?v.name:"???"}</li>`).join("")+`</ul></div>`;
+  }
+  html += `<div class="choices">`+choices.map((c,i)=>`<button data-i="${i}" class="${c.danger?"danger":""}">${c.t}${c.s?`<small>${c.s}</small>`:""}</button>`).join("")+`</div>`;
+  el.innerHTML=html;
+  el.querySelectorAll("button").forEach(b=>b.onclick=()=>choices[+b.dataset.i].go());
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+const next = (fn, t="Continuar") => [{t, go:fn}];
+
+/* =====================================================
+   CENAS
+   ===================================================== */
+const S = {
+  intro(){ reset(); render({
+    art:ART.intro(), chapter:"Prólogo", title:"Dia 1 — O Fim do Mundo Comum",
+    paras:[
+      "Seu nome é <b>Lia Moreno</b>. Há três semanas você era enfermeira no Hospital Santa Clara. Hoje, o hospital é um túmulo cheio de passos arrastados.",
+      "A cidade de Vale Cinza caiu em quatro dias. Primeiro as febres, depois os gritos, e então o silêncio — quebrado apenas pelos gemidos que sobem das ruas ao anoitecer.",
+      "Você sobreviveu escondida no último andar de um prédio comercial. Mas hoje a última lata acabou. O rádio a pilha chiou uma frase antes de morrer: <i>“...zona segura... base militar Ferreira... sobreviventes...”</i>",
+      "Está na hora de sair."
+    ],
+    choices:next(S.quarto,"Arrumar a mochila")
+  });},
+
+  quarto(){ render({
+    art:ART.quarto(), chapter:"Capítulo I", title:"O Que Levar",
+    paras:[
+      "A mochila está quase cheia: água, uma lanterna, um pé-de-cabra preso na alça lateral. Sobra espaço para <b>uma</b> coisa mais pesada.",
+      "Sobre a mesa estão as duas únicas coisas de valor que você juntou nessas semanas.",
+      "Um <b>kit médico</b> completo que você trouxe do hospital no primeiro dia: gaze, antisséptico, sutura, duas ampolas de morfina.",
+      "E a <b>pistola</b> do segurança do prédio, que você tirou do corpo dele no saguão. Três balas no carregador. Você nunca atirou na vida."
+    ],
+    choices:[
+      {t:"Levar o kit médico", s:"Pode salvar sua vida quando você estiver ferida.", go:()=>{ st.item="kit"; note("Item: Kit médico","pos"); S.mercado(); }},
+      {t:"Levar a pistola", s:"Três balas. Cada uma pode ser a diferença.", go:()=>{ st.item="pistola"; st.balas=3; note("Item: Pistola (3 balas)","pos"); S.mercado(); }},
+    ]
+  });},
+
+  mercado(){ render({
+    art:ART.mercado(), chapter:"Capítulo II", title:"O Mercado Saqueado",
+    paras:[
+      "As ruas cheiram a fumaça e carne podre. Você avança colada às paredes até um mercadinho de esquina com as portas arrombadas.",
+      "Lá dentro, entre prateleiras tombadas, você encontra água e algumas latas. Então ouve uma respiração pesada atrás do balcão.",
+      st.item==="pistola" ? "Você ergue a pistola com as duas mãos tremendo." : "Você aperta o pé-de-cabra.",
+      "Um homem de uns quarenta anos está encostado na parede, a perna da calça encharcada de sangue. Ele levanta as mãos devagar.",
+      "— Calma... não sou um deles. Me chamo Marcos. Caí de um telhado fugindo. Por favor... só preciso de ajuda pra andar.",
+      "Lá fora, os gemidos aumentam. O barulho atraiu a horda. Você tem talvez um minuto. Carregá-lo vai te atrasar — e você não consegue ver o ferimento sob o tecido rasgado."
+    ],
+    choices:[
+      {t:"Ajudar Marcos", s:"Apoiá-lo no ombro e dividir o que encontrou.",
+        go:()=>{ st.marcos=true; note("Marcos agora te acompanha","pos"); supply(-1); hurt(10); S.fuga(); }},
+      {t:"Deixá-lo para trás", s:"Pegar tudo e fugir pela porta dos fundos.",
+        go:()=>{ supply(+2); hurt(5); S.fuga(); }},
+    ]
+  });},
+
+  fuga(){
+    st.day=2;
+    render({
+      art:ART.postoNoite(st.marcos), chapter:"Capítulo III", title:"Latidos no Escuro",
+      paras: st.marcos ? [
+        "Você e Marcos saem pelos fundos no instante em que a vitrine explode em cacos e mãos acinzentadas. Um caco de vidro abre um corte fundo no seu antebraço.",
+        "Vocês se escondem na loja de conveniência de um posto abandonado. Marcos conta que era técnico de comunicações do exército. Ele conhece as frequências militares da Base Ferreira.",
+        st.item==="kit"
+          ? "Com o kit, você limpa e sutura a perna dele. É um corte feio de metal — não uma mordida. Ele aperta sua mão em silêncio, agradecido."
+          : "Ele não deixa você ver a perna. — Tá cicatrizando, enfermeira. Relaxa. — Mas ele está suando frio.",
+        "Já é noite quando começa: <b>latidos</b>. Um vira-lata magro, de coleira vermelha, late desesperado do lado de fora da porta de vidro. Na placa da coleira: <i>FAROL</i>.",
+        "E os latidos estão chamando eles. Três vultos já atravessam a pista, arrastando os pés na direção do posto."
+      ] : [
+        "Você foge pelos fundos. Um caco de vidro abre um corte no seu antebraço. O grito de Marcos te segue por dois quarteirões — e depois para.",
+        "Você se esconde sozinha na loja de conveniência de um posto abandonado. Não consegue comer. Não consegue dormir.",
+        "Já é noite quando começa: <b>latidos</b>. Um vira-lata magro, de coleira vermelha, late desesperado do lado de fora da porta de vidro. Na placa da coleira: <i>FAROL</i>.",
+        "E os latidos estão chamando eles. Três vultos já atravessam a pista, arrastando os pés na direção do posto."
+      ],
+      choices:[
+        {t:"Abrir a porta e puxar o cachorro para dentro", s:"Arriscado: eles estão perto demais.", go:()=>S.caoRes(true)},
+        {t:"Ficar em silêncio no escuro", s:"O cachorro vai continuar latindo... até não latir mais.", go:()=>S.caoRes(false)},
+      ]
+    });
+  },
+
+  caoRes(abriu){
+    let paras, dead=false;
+    if(abriu){
+      st.cao=true; note("Farol agora te acompanha","pos");
+      paras=["Você destranca a porta e agarra o cachorro pela coleira. No mesmo instante, um braço podre se enfia pela fresta."];
+      if(st.item==="pistola"){
+        st.balas--; note("−1 Bala","neg");
+        paras.push("O disparo ecoa como um trovão. O zumbi cai. Você bate a porta com o ombro e passa o trinco, o ouvido zunindo.");
+        dead=hurt(5,"no posto");
+      } else if(st.marcos){
+        paras.push("Marcos empurra a porta com o corpo todo enquanto você passa o trinco. Unhas arranham seu ombro, mas não rompem a pele.");
+        dead=hurt(8,"no posto");
+      } else {
+        paras.push("Você empurra sozinha. Os dentes passam a centímetros do seu rosto. Quando o trinco finalmente fecha, seu ombro está em carne viva de tanto bater na porta.");
+        dead=hurt(15,"no posto");
+      }
+      paras.push("Os vultos ficam arranhando o vidro por uma hora e então perdem o interesse. Farol se enrola no seu colo, tremendo. Ele lambe o corte no seu braço. Pela primeira vez em semanas, você não se sente sozinha.");
+    } else {
+      paras=[
+        "Você se encolhe atrás do balcão e tampa os ouvidos.",
+        "Os latidos ficam mais altos. Mais desesperados. Depois, um ganido agudo.",
+        "Depois, nada.",
+        "Os vultos ficam rondando o posto até de madrugada, mas não encontram você. Você está segura. Você repete isso para si mesma até o sol nascer."
+      ];
+    }
+    render({ art:ART.postoNoite(st.marcos), chapter:"Capítulo III", title:"Latidos no Escuro", paras,
+      choices: dead ? next(S.morte,"...") : next(S.febre) });
+  },
+
+  febre(){
+    st.day=3;
+    render({
+      art:ART.hospital(), chapter:"Capítulo IV", title:"Febre",
+      paras:[
+        "Você acorda queimando. O corte do mercado está inchado, vermelho, quente ao toque. Você é enfermeira — sabe exatamente o que isso significa. Infecção bacteriana. Sem antibiótico, em três dias você não consegue andar.",
+        st.marcos && st.item!=="kit" ? "Marcos está pior que você. A perna dele cheira mal. Ele finalmente deixa você olhar: é um corte de metal, não uma mordida. Mas está infeccionado." : "",
+        st.marcos && st.item==="kit" ? "A perna de Marcos, que você suturou, está limpa. Mas o seu braço não." : "",
+        "Há dois lugares onde pode haver antibióticos:",
+        "<b>O Hospital Santa Clara</b>, a oito quarteirões. Você conhece cada corredor. A farmácia fica no subsolo. E no quarto andar ficava o laboratório da Dra. Helena Prado, sua antiga chefe — diziam que ela estava pesquisando a infecção quando tudo caiu. Mas o hospital foi onde tudo começou. Ainda deve estar cheio deles.",
+        "<b>A Drogaria do Km 12</b>, na saída da cidade. Pequena, isolada, provavelmente saqueada. Mais segura. Talvez vazia."
+      ],
+      choices:[
+        {t:"Entrar no Hospital Santa Clara", s:"Alto risco. Pode haver algo além de remédios.", danger:true, go:S.hospital},
+        {t:"Ir até a Drogaria do Km 12", s:"Mais seguro, menos recompensas.", go:S.farmacia},
+      ]
+    });
+  },
+
+  hospital(){
+    let paras=["O saguão do Santa Clara está escuro e cheira a formol e podridão. Você desce as escadas até o subsolo, contando os passos de memória."], dead=false;
+    if(st.cao){
+      paras.push("Farol vai na frente, focinho baixo. A cada esquina ele para e rosna baixinho — e você muda de caminho. Ele te guia pelo labirinto sem que você precise enfrentar um único deles.");
+      dead=hurt(5,"no hospital");
+    } else if(st.item==="pistola" && st.balas>0){
+      paras.push(`No corredor da farmácia, eles te encontram. Você atira até o carregador esvaziar. ${st.balas} ${st.balas===1?"tiro":"tiros"}, ${st.balas===1?"um corpo":"corpos"} no chão — e o eco atraindo mais. Você corre.`);
+      note(`−${st.balas} ${st.balas===1?"Bala":"Balas"}`,"neg"); st.balas=0;
+      dead=hurt(15,"no hospital");
+    } else {
+      paras.push("No corredor da farmácia, eles te cercam. Você golpeia com o pé-de-cabra, uma, duas, três vezes. Então sente os dentes se fecharem no seu ombro.");
+      if(st.marcos) paras.push("Marcos arranca a coisa de cima de você e a derruba com uma cadeira. Tarde demais.");
+      paras.push("Você olha a marca. Meia-lua de dentes, sangrando. Você já viu isso centenas de vezes nas últimas semanas. Sabe como termina.");
+      st.mordida=true; note("Você foi mordida","neg");
+      dead=hurt(30,"no hospital");
+    }
+    if(!dead){
+      paras.push("Na farmácia, você enche os bolsos de antibióticos. Depois, contra todo bom senso, sobe até o quarto andar.");
+      paras.push("A Dra. Helena está sentada à mesa do laboratório. Morta há dias — um tiro, pela própria mão. Ao lado dela, uma maleta térmica com um frasco que brilha num tom azul-claro, e um bilhete:");
+      paras.push("<i>“Amostra H-17. Anticorpos de um paciente imune. Pode ser a cura — mas eu não tenho como levá-la. Base Ferreira, laboratório da Marinha. Código de autenticação no rádio: ÔMEGA-SETE. Quem encontrar isto: por favor.”</i>");
+      st.amostra=true; note("Item: Amostra H-17","pos"); note("Antibióticos encontrados","pos"); supply(+2);
+    }
+    render({art:ART.corredor(st.cao), chapter:"Capítulo IV", title:"Santa Clara", paras, choices: dead?next(S.morte,"..."):next(S.corvos)});
+  },
+
+  farmacia(){
+    const paras=["A Drogaria do Km 12 foi saqueada há muito tempo: prateleiras vazias, gavetas no chão. Mas saqueadores procuram analgésicos e calmantes. Ninguém lembra de olhar no estoque refrigerado dos fundos."];
+    let dead;
+    if(st.cao){ paras.push("Farol rosna para a porta do estoque antes de você abri-la. Lá dentro, um farmacêutico morto-vivo, ainda de jaleco. Avisada, você o derruba antes que ele se levante."); dead=hurt(3,"na drogaria"); }
+    else { paras.push("Quando você abre a porta do estoque, um farmacêutico morto-vivo, ainda de jaleco, cai em cima de você. Você rola pelo chão com ele, até acertá-lo com o pé-de-cabra. Por pouco."); dead=hurt(12,"na drogaria"); }
+    paras.push("No fundo da geladeira desligada: três caixas de amoxicilina. Suficiente.");
+    note("Antibióticos encontrados","pos"); supply(+1);
+    paras.push("No estacionamento, uma caminhonete com a chave no contato e meio tanque. Pela primeira vez, a sorte parece estar do seu lado.");
+    render({art:ART.farmacia(), chapter:"Capítulo IV", title:"Drogaria do Km 12", paras, choices: dead?next(S.morte,"..."):next(S.corvos)});
+  },
+
+  corvos(){
+    st.day=5;
+    render({
+      art:ART.corvos(), chapter:"Capítulo V", title:"Os Corvos",
+      paras:[
+        "Dois dias depois, com a febre controlada, você pega a estrada para fora de Vale Cinza.",
+        st.mordida ? "A mordida no ombro lateja. Você ainda não teve coragem de olhar para ela de novo." : "",
+        "Na saída da rodovia, barris em chamas bloqueiam as duas pistas. Carros virados formam uma muralha. Atrás deles, seis vultos com máscaras de penas pretas e tacos com pregos.",
+        "Um homem alto se adianta, com um colar de bicos de urubu no pescoço.",
+        "— Bem-vinda ao pedágio. Sou o Bento. Aqui é território dos Corvos. A taxa é simples: <b>tudo</b> o que tiver no carro.",
+        st.cao ? "Ele olha para Farol e sorri. — E o cachorro também. Cachorro é janta." : "",
+        "Ele inclina a cabeça, avaliando você. — Ou... gente que sobrevive sozinha lá fora tem utilidade. Os Corvos sempre têm lugar pra mais um."
+      ],
+      choices:[
+        {t:"Entregar os suprimentos", s: st.sup>0?`Perder todos os seus ${st.sup} suprimentos.`:"Você não tem nada para entregar...", go:()=>S.corvosRes("pagar")},
+        {t:"Lutar", s: st.item==="pistola" ? (st.balas>0?`Você tem ${st.balas} ${st.balas===1?"bala":"balas"}.`:"A pistola está vazia.") : "Você só tem o pé-de-cabra.", danger:true, go:()=>S.corvosRes("lutar")},
+        {t:"Aceitar o convite de Bento", s:"Juntar-se aos Corvos.", danger:true, go:S.finalCorvos},
+      ]
+    });
+  },
+
+  corvosRes(acao){
+    const paras=[]; let dead=false;
+    if(acao==="pagar"){
+      st.corvos="pagou";
+      if(st.sup>0){
+        paras.push("Você abre a caçamba. Os Corvos levam tudo: comida, água, até a lanterna. Bento dá dois tapinhas no capô.");
+        supply(-st.sup);
+      } else {
+        paras.push("— Não tem nada? — Bento suspira, quase decepcionado. — Então paga de outro jeito.");
+        paras.push("Eles te arrastam para fora do carro. A surra dura menos de um minuto, mas parece uma hora.");
+        dead=hurt(30,"no pedágio dos Corvos");
+      }
+      if(st.cao && !dead) paras.push("Quando um deles avança em Farol, o cachorro mostra os dentes de um jeito que faz até Bento rir e recuar. — Fica com o bicho. Tá magro demais mesmo.");
+      paras.push("A barreira se abre. Você passa devagar, sentindo os olhares nas suas costas.");
+    } else {
+      st.corvos="lutou";
+      if(st.item==="pistola" && st.balas>0){
+        paras.push("Você saca a pistola e atira no barril de combustível ao lado de Bento. A explosão de fogo espalha os Corvos como, bem, corvos.");
+        st.balas--; note("−1 Bala","neg");
+        paras.push("Você acelera pelo vão entre os carros. No caminho, pega duas mochilas que eles deixaram cair.");
+        dead=hurt(10,"no pedágio dos Corvos"); if(!dead) supply(+2);
+      } else {
+        if(st.item==="pistola") paras.push("Você saca a pistola e puxa o gatilho. <i>Clique.</i> Vazia. Bento gargalha.");
+        if(st.marcos){
+          paras.push("Marcos sai do carro mancando e se joga contra Bento com tudo o que tem. — <b>Vai, Lia! Acelera!</b>");
+          paras.push("Você hesita um segundo. Um segundo é o suficiente para ver os tacos subindo e descendo. Você acelera, chorando, e não olha para trás.");
+          st.marcos=false; note("Marcos morreu","neg");
+          dead=hurt(20,"no pedágio dos Corvos");
+        } else if(st.cao){
+          paras.push("Farol salta pela janela e crava os dentes na perna de Bento. No caos, você passa por cima de uma moto e rompe a barreira.");
+          paras.push("Um taco acerta o vidro e os estilhaços cortam seu rosto. No retrovisor, uma mancha marrom corre atrás do carro — Farol! Você para, ele pula para dentro, e você nunca acelerou tanto na vida.");
+          dead=hurt(30,"no pedágio dos Corvos");
+        } else {
+          paras.push("Você avança com o pé-de-cabra. Acerta um. Dois. Então são seis contra uma.");
+          dead=hurt(80,"no pedágio dos Corvos");
+          if(!dead) paras.push("Você não sabe como conseguiu voltar para o carro. Só sabe que conseguiu.");
+        }
+      }
+    }
+    render({art:ART.corvos(), chapter:"Capítulo V", title:"Os Corvos", paras, choices: dead?next(S.morte,"..."):next(S.encruzilhada)});
+  },
+
+  encruzilhada(){
+    st.day=6;
+    const comp = st.marcos&&st.cao ? "Marcos cochila no banco do passageiro, Farol deitado no colo dele." :
+                 st.marcos ? "Marcos estuda o mapa no banco do passageiro." :
+                 st.cao ? "Farol dorme no banco do passageiro, uma pata sobre a sua perna." :
+                 "O banco do passageiro está vazio. Você já se acostumou a falar sozinha.";
+    render({
+      art:ART.estrada(st.marcos,st.cao), chapter:"Capítulo VI", title:"A Encruzilhada",
+      paras:[
+        "O sol se põe sobre a rodovia vazia. "+comp,
+        "Uma placa enferrujada divide a estrada em duas.",
+        "<b>Ao norte: a Base Militar Ferreira.</b> A zona segura do rádio. Muros, soldados, talvez um helicóptero. Mas a transmissão está muda há dias.",
+        "<b>Ao sul: a fazenda da sua avó</b>, a 200 km, isolada entre colinas. Poço próprio, horta, nenhuma cidade por perto. Ninguém para salvar você — mas ninguém para atrair a horda.",
+        st.amostra ? "A maleta térmica com a amostra H-17 está no banco de trás. O bilhete da Dra. Helena dizia: <i>Base Ferreira.</i>" : "",
+        st.marcos ? "— Se tiver qualquer um vivo na Ferreira — diz Marcos —, eu sei falar com eles pelo rádio." : "",
+        st.mordida ? "Você olha o ombro. As veias ao redor da mordida estão escuras. Você calcula quanto tempo ainda tem. Não é muito." : "",
+      ],
+      choices:[
+        {t:"Seguir para a Base Militar", s:"Arriscar tudo na promessa de proteção.", go:()=>{ st.route="base"; S.final(); }},
+        {t:"Seguir para a fazenda", s:"Apostar no isolamento.", go:()=>{ st.route="fazenda"; S.final(); }},
+      ]
+    });
+  },
+
+  morte(){
+    render({
+      art:ART.fim(), chapter:"Epílogo", title:"Fim da Linha", ending:"fim",
+      paras:[
+        `Seu corpo simplesmente para de obedecer. Aconteceu ${st.causa}, no dia ${st.day}.`,
+        "Você cai de joelhos no asfalto frio. A mochila escorrega do seu ombro. Você pensa em levantar. Pensa no rádio, na base, na fazenda da sua avó com a porteira azul.",
+        st.cao ? "A última coisa que você sente é o focinho de Farol empurrando sua mão, insistindo para você levantar." : "A última coisa que você ouve são os passos arrastados chegando mais perto.",
+        "Vale Cinza ganha mais um morador."
+      ],
+      choices:next(S.intro,"Tentar novamente")
+    });
+  },
+
+  finalCorvos(){
+    st.day=40;
+    render({
+      art:ART.corvos(), chapter:"Epílogo", title:"Dia 40 — Asas Negras", ending:"corvos",
+      paras:[
+        "Bento sorri e joga para você uma máscara de penas pretas.",
+        st.marcos ? "Marcos te olha como se não te reconhecesse. Ele desce do carro e vai embora mancando pela estrada, sozinho. Você nunca mais o vê." : "",
+        "Com os Corvos você nunca passa fome. Aprende a montar emboscadas, a ler o medo nos olhos de quem chega ao pedágio, a não pensar demais.",
+        st.cao ? "Farol nunca se acostuma com eles. À noite, ele dorme encostado em você, o único que ainda te olha do mesmo jeito." : "",
+        "No quadragésimo dia, um carro velho para na barreira. Ao volante, uma mulher com o braço enfaixado. No banco de trás, um homem ferido que ela recusou deixar para trás.",
+        "— Bem-vinda ao pedágio — você se ouve dizer, com a voz de Bento. — A taxa é tudo o que tiver no carro.",
+        "Por trás da máscara, ninguém vê sua expressão. Nem você sabe mais qual é."
+      ],
+      choices:next(S.intro,"Jogar novamente")
+    });
+  },
+
+  final(){
+    const base = st.route==="base";
+    let key;
+    if(st.mordida) key="ultimo";
+    else if(base) key = st.amostra?"cura" : st.marcos?"resgate" : st.cao?"instinto" : "portoes";
+    else key = st.marcos?"raizes" : st.cao?"companhia" : "silencio";
+    if(key==="portoes") st.hp=0;
+    st.day = base?7:10;
+    const T = TEXTS[key]();
+    render({art:ART[key](), chapter:"Epílogo", title:T.title, paras:T.paras, ending:key, choices:next(S.intro,"Jogar novamente")});
+  },
+};
+
+/* ---------- TEXTOS DOS FINAIS ---------- */
+const TEXTS = {
+  cura:()=>({title:"Dia 7 — Ômega-Sete", paras:[
+    "A Base Ferreira está em ruínas: portões derrubados, torres vazias, corpos de farda se arrastando entre os blindados. Mas a torre de rádio ainda está de pé.",
+    st.marcos ? "Marcos liga o gerador de emergência e sintoniza a frequência com mãos firmes." : "Você liga o gerador de emergência e gira os botões do rádio até encontrar estática viva.",
+    "— Aqui é Lia Moreno, Base Ferreira. Código de autenticação: Ômega-Sete. Estou com a amostra H-17 da Dra. Helena Prado.",
+    "Silêncio. Então, uma voz incrédula: — <i>Repita... a amostra da Dra. Prado? Fique onde está. Estamos indo.</i>",
+    "O helicóptero leva todos vocês até um navio-laboratório da Marinha, ancorado longe da costa.",
+    "Dois anos depois, a primeira vacina é aplicada. Ela tem um nome oficial longo e cheio de números. Mas, nos corredores do navio, todo mundo a chama de <b>Helena</b>.",
+    st.cao ? "Farol, já com o focinho grisalho, dorme debaixo da sua mesa na enfermaria." : "",
+    st.marcos ? "Marcos coordena as comunicações da frota. Toda manhã ele passa na enfermaria só para dizer bom dia." : "",
+    "O mundo acabou. E então, devagar, começou a se curar."
+  ]}),
+  resgate:()=>({title:"Dia 7 — Frequência 7.4", paras:[
+    "A Base Ferreira está em ruínas. Portões derrubados, torres vazias. Seu estômago afunda.",
+    "Mas Marcos não hesita. Ele te guia até a torre de rádio, liga o gerador e digita uma sequência de códigos que só alguém de dentro saberia.",
+    "— Aqui é o cabo Marcos Albuquerque, código Delta-Sete-Quatro. Sobreviventes na base Ferreira. Solicito extração.",
+    "Quarenta minutos de silêncio. Depois, o som mais bonito que você já ouviu: hélices.",
+    st.cao ? "Farol late para o helicóptero o caminho inteiro, até alguém lhe dar um biscoito." : "",
+    "— Obrigado por ter voltado por mim — Marcos diz, enquanto Vale Cinza encolhe lá embaixo.",
+    "Na Ilha de Fernão, a nova colônia precisa de enfermeiras. Você tem trabalho a fazer. O mundo acabou — mas recomeçou."
+  ]}),
+  instinto:()=>({title:"Dia 7 — Ele Sabia", paras:[
+    "A Base Ferreira surge no horizonte com as bandeiras tremulando e o alto-falante repetindo: <i>“...dirijam-se à zona segura...”</i>",
+    "Você acelera. Mas a cem metros do portão, Farol começa a uivar e a arranhar a porta, desesperado, as orelhas coladas na cabeça.",
+    "Você confia no cachorro. Dá meia-volta e sobe um morro próximo.",
+    "Meia hora depois, outro carro passa pelo portão aberto. Os hangares se abrem de uma vez. Centenas deles. A gravação era uma isca, e a base, uma armadilha.",
+    "Naquela noite, do alto do morro, você vê uma fila de faróis na estrada: uma caravana de nômades. Farol abana o rabo pela primeira vez em dias e corre até eles.",
+    "Você vai atrás. Não é um lar. Mas é gente. E, por enquanto, é suficiente."
+  ]}),
+  portoes:()=>({title:"Dia 7 — Ninguém Atende", paras:[
+    "A Base Ferreira surge no horizonte com as bandeiras tremulando. Você acelera.",
+    "Só quando atravessa o portão aberto você percebe: ninguém nas torres. O alto-falante repete uma gravação antiga: <i>“...dirijam-se à zona segura...”</i>",
+    "A gravação foi o que os atraiu. Centenas deles, esperando nos hangares. Agora saem todos ao mesmo tempo, atraídos pelo motor.",
+    "Você corre até a torre de rádio e tranca a porta. O painel está cheio de códigos militares que você não sabe usar. Alguém saberia. Por um segundo, você pensa no homem do mercado.",
+    "Você conta as latas que sobraram e escuta as unhas arranhando o metal lá embaixo.",
+    "A porta aguenta onze dias."
+  ]}),
+  raizes:()=>({title:"Dia 10 — Vila Jabuticaba", paras:[
+    "A fazenda está exatamente como você lembrava: a porteira azul, o pé de jabuticaba, o poço.",
+    "Com os antibióticos, a perna de Marcos cicatriza. Ele monta uma antena no telhado com peças de um trator velho e começa a transmitir: <i>“Fazenda segura. Água e comida. Venham.”</i>",
+    "Os primeiros chegam no mês seguinte: uma professora, dois irmãos adolescentes, um senhor que sabe consertar qualquer motor. Depois outros.",
+    "Dois anos depois, trinta pessoas vivem ali. Há uma escola no celeiro, um moinho, uma horta que alimenta todo mundo.",
+    st.cao ? "Farol virou o cão de guarda oficial e o melhor amigo de todas as crianças." : "",
+    st.amostra ? "A amostra H-17 continua no freezer do porão. Às vezes você fica olhando para ela e se pergunta o que poderia ter sido." : "",
+    "Os moradores chamam o lugar de Vila Jabuticaba. Você chama de casa."
+  ]}),
+  companhia:()=>({title:"Dia 10 — Só Nós Dois", paras:[
+    "A fazenda está exatamente como você lembrava: a porteira azul, o pé de jabuticaba, o poço.",
+    "Você e Farol aprendem a viver ali. Ele late quando algum errante se aproxima da cerca; você cuida do resto. Ele te acorda de madrugada para ver estrelas cadentes — ou talvez só queira comida.",
+    "Os anos passam. O focinho dele fica branco. Ele já não corre atrás das galinhas.",
+    "Numa tarde quente, ele deita a cabeça no seu colo na varanda e não levanta mais.",
+    "Você o enterra sob a jabuticabeira. Naquela noite, pela primeira vez em anos, você liga o rádio e responde a uma voz pedindo ajuda.",
+    "— Aqui é Lia. Tenho uma fazenda. Tem lugar.",
+    st.amostra ? "No porão, a amostra H-17 continua esperando alguém que saiba o que fazer com ela." : ""
+  ]}),
+  silencio:()=>({title:"Dia 10 — E Depois, Nada", paras:[
+    "A fazenda está exatamente como você lembrava: a porteira azul, o pé de jabuticaba, o poço.",
+    "Você reforça as cercas sozinha. Planta sozinha. Abate os errantes que aparecem na estrada sozinha. É eficiente. É segura.",
+    "As semanas viram meses. Os meses viram anos. Você fala com as galinhas. Depois, para de falar.",
+    "Às vezes, o rádio velho capta vozes — colônias, comboios, alguém pedindo ajuda. Você nunca responde. Gente é risco.",
+    st.amostra ? "No porão, a amostra H-17 descongela num apagão de verão. Você nem percebe." : "",
+    "Numa tarde de inverno, você se lembra de um homem num mercado e de um cachorro latindo numa porta de vidro.",
+    "Você sobreviveu ao apocalipse. Só não sabe para quê."
+  ]}),
+  ultimo:()=>{
+    const base=st.route==="base";
+    const p=[
+      "A febre chega no sexto dia, exatamente como você sabia que chegaria. As veias escuras já passaram do pescoço.",
+    ];
+    if(st.amostra){
+      p.push("Naquela noite, com as mãos tremendo, você abre a maleta da Dra. Helena. <i>Anticorpos de um paciente imune.</i> Ninguém nunca testou. Você é enfermeira. Você sabe que é loucura.");
+      p.push("Você enche a seringa e injeta a amostra H-17 na própria veia.");
+      if(st.marcos||st.cao) p.push(st.marcos ? "— Se eu mudar — você diz a Marcos —, não hesita." : "Farol deita encostado em você e não sai de perto a noite inteira.");
+      p.push("Você sobe até o telhado para ver o sol nascer. A febre arde. O mundo gira.");
+      p.push("Quando o primeiro raio de luz toca seu rosto, você percebe que ainda está aqui. Ainda está pensando. Ainda é você.");
+      p.push("Talvez seja a amostra. Talvez seja só o último amanhecer. Você fecha os olhos e decide acreditar no primeiro.");
+    } else {
+      if(st.marcos) p.push(base ? "Você ensina a Marcos tudo o que sabe sobre feridas e febres. Ele vai precisar quando o helicóptero chegar. Você não vai embarcar." : "Você ensina a Marcos a cuidar da horta e do poço. A fazenda vai ser dele.");
+      if(st.cao) p.push("Você amarra no pescoço de Farol um bilhete: <i>“Este é o Farol. Ele salva vidas. Cuide dele.”</i>");
+      p.push("Então, antes que seja tarde, você sobe sozinha até o alto de um prédio, de onde dá para ver toda Vale Cinza.");
+      p.push("Você se senta na beirada e espera o sol. Foi uma boa enfermeira. Foi uma boa sobrevivente, pelo tempo que deu.");
+      p.push("O céu fica laranja, depois rosa, depois dourado. É o amanhecer mais bonito que você já viu.");
+    }
+    return {title:"Dia 7 — Último Turno", paras:p};
+  },
+};
+
+S.intro();
+</script>
+</body>
+</html>
